@@ -1,8 +1,26 @@
 import Foundation
 import UserNotifications
 
+final class MidrarNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = MidrarNotificationDelegate()
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Always present native iOS top banner + sound, never an intrusive center modal
+        completionHandler([.banner, .sound])
+    }
+}
+
 enum NotificationService {
+    static func configureDelegate() {
+        UNUserNotificationCenter.current().delegate = MidrarNotificationDelegate.shared
+    }
+
     static func requestAndSchedule(state: AppState) {
+        configureDelegate()
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             guard granted else { return }

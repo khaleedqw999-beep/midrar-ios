@@ -72,9 +72,9 @@ struct LeaderboardView: View {
                         }
                         .padding(14)
                         .background(
-                            RoundedRectangle(cornerRadius: 18)
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .fill(Color.cardSurface)
-                                .overlay(RoundedRectangle(cornerRadius: 18).stroke(isSelf ? store.accentColor : Color.cardBorder, lineWidth: isSelf ? 1.6 : 1))
+                                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(isSelf ? store.accentColor : Color.cardBorder, lineWidth: isSelf ? 1.6 : 1))
                         )
                     }
                 }
@@ -104,9 +104,9 @@ struct LeaderboardView: View {
         .padding(.vertical, elevated ? 16 : 12)
         .padding(.horizontal, 6)
         .background(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color.cardSurface)
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(elevated ? Color(hex: "C68A2E") : Color.cardBorder, lineWidth: elevated ? 1.5 : 1))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(elevated ? Color(hex: "C68A2E") : Color.cardBorder, lineWidth: elevated ? 1.5 : 1))
         )
     }
 }

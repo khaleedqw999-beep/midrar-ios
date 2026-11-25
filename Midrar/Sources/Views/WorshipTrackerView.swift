@@ -170,7 +170,7 @@ struct WorshipTrackerView: View {
                 }
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 22).fill(Color(hex: "151E24")))
+            .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(hex: "151E24")))
 
             // Section 1: 5 Prayers
             HStack {
@@ -283,7 +283,7 @@ struct WorshipTrackerView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 18).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.cardBorder)))
+            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.cardBorder)))
         }
     }
 
@@ -337,9 +337,9 @@ struct WorshipTrackerView: View {
                     }
                     .padding(14)
                     .background(
-                        RoundedRectangle(cornerRadius: 18)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(Color.cardSurface)
-                            .overlay(RoundedRectangle(cornerRadius: 18).stroke(isSelected ? store.accentColor : Color.cardBorder, lineWidth: isSelected ? 1.6 : 1))
+                            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(isSelected ? store.accentColor : Color.cardBorder, lineWidth: isSelected ? 1.6 : 1))
                     )
                 }
                 .buttonStyle(.plain)
@@ -387,9 +387,9 @@ struct WorshipTrackerView: View {
             }
             .padding(14)
             .background(
-                RoundedRectangle(cornerRadius: 18)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .fill(Color.cardSurface)
-                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(done ? store.accentColor : Color.cardBorder, lineWidth: done ? 1.5 : 1))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(done ? store.accentColor : Color.cardBorder, lineWidth: done ? 1.5 : 1))
             )
         }
         .buttonStyle(.plain)

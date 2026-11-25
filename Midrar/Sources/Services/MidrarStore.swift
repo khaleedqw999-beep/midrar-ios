@@ -69,6 +69,16 @@ final class MidrarStore: ObservableObject {
         return "stage_\(currentStage)"
     }
 
+    var dailyGoalProgress: Double {
+        min(1.0, Double(state.todayCount) / Double(max(1, state.dailyGoal)))
+    }
+
+    var cycleProgress: Double {
+        let inCycle = Double(state.totalIstighfar % Int64(Self.totalCycleDhikr))
+        if state.totalIstighfar > 0 && inCycle == 0 { return 1.0 }
+        return min(1.0, inCycle / Double(Self.totalCycleDhikr))
+    }
+
     nonisolated static func computeStage(totalDhikr: Int64) -> Int {
         let c = Double(max(0, totalDhikr))
         let maxIdx = Double(maxStage - 1)

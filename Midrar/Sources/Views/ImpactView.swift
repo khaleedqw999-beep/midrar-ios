@@ -66,7 +66,7 @@ struct ImpactView: View {
                     }
                 }
                 .padding(16)
-                .background(RoundedRectangle(cornerRadius: 18).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.cardBorder)))
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.cardBorder)))
 
                 // Share Progress & App Link Card
                 VStack(alignment: .leading, spacing: 10) {
@@ -96,7 +96,7 @@ struct ImpactView: View {
                     }
                 }
                 .padding(16)
-                .background(RoundedRectangle(cornerRadius: 18).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.cardBorder)))
+                .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.cardBorder)))
 
                 Spacer(minLength: 90)
             }
