@@ -7,8 +7,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "3.9"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "4.0"
+    CURRENT_PROJECT_VERSION: "2"
     PRODUCT_NAME: Midrar
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_IDENTITY: ""
@@ -31,8 +31,8 @@ targets:
       path: Midrar/Info.plist
       properties:
         CFBundleDisplayName: مدرار
-        CFBundleShortVersionString: "3.9"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "4.0"
+        CFBundleVersion: "2"
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:

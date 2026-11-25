@@ -218,7 +218,7 @@ struct ProfileSettingsView: View {
                     Text("صُنع بحب كصدقة جارية لوالد صانع التطبيق رحمه الله")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                    Text("تطوير: خالد الفقيه • @9.uk00")
+                    Text("تطوير: خالد الفقيه • @9.uk00 • الإصدار 4.0")
                         .font(.system(size: 11.5, weight: .bold))
                         .foregroundColor(store.accentColor)
                 }

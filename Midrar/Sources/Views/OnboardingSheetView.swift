@@ -21,6 +21,7 @@ struct OnboardingSheetView: View {
     private let totalSteps = 5
 
     var body: some View {
+        NavigationStack {
         ZStack(alignment: .bottom) {
             Color.black.opacity(0.45)
                 .ignoresSafeArea()
@@ -155,6 +156,7 @@ struct OnboardingSheetView: View {
             ageInput = store.state.userAge > 0 ? "\(store.state.userAge)" : ""
             genderInput = store.state.userGender
             if isEditMode { step = totalSteps - 1 }
+        }
         }
     }
 
@@ -315,8 +317,10 @@ struct OnboardingSheetView: View {
                             .font(.system(size: 15))
                             .foregroundColor(focusedField == .age ? store.accentColor : .secondary)
                         TextField("مثال: 24", text: $ageInput)
-                            .keyboardType(.numberPad)
+                            .keyboardType(.numbersAndPunctuation)
                             .focused($focusedField, equals: .age)
+                            .submitLabel(.done)
+                            .onSubmit { dismissKeyboard() }
                         if focusedField == .age {
                             Button("تم") { dismissKeyboard() }
                                 .font(.system(size: 13, weight: .bold))
