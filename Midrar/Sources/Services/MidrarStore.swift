@@ -3,8 +3,8 @@ import SwiftUI
 
 @MainActor
 final class MidrarStore: ObservableObject {
-    static let maxStage = 598
-    static let totalCycleDhikr: Int64 = 15000
+    nonisolated static var maxStage: Int { 598 }
+    nonisolated static var totalCycleDhikr: Int64 { 15000 }
 
     @Published var state: AppState
     @Published var leaderboard: [LeaderboardEntry] = []
@@ -69,7 +69,7 @@ final class MidrarStore: ObservableObject {
         return "stage_\(currentStage)"
     }
 
-    static func computeStage(totalDhikr: Int64) -> Int {
+    nonisolated static func computeStage(totalDhikr: Int64) -> Int {
         let c = Double(max(0, totalDhikr))
         let maxIdx = Double(maxStage - 1)
         let idx: Double
