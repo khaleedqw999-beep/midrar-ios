@@ -1,0 +1,43 @@
+name: Midrar
+options:
+  bundleIdPrefix: com.midrar
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "3.9"
+    CURRENT_PROJECT_VERSION: "1"
+    PRODUCT_NAME: Midrar
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: "NO"
+    CODE_SIGNING_ALLOWED: "NO"
+    TARGETED_DEVICE_FAMILY: "1"
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+targets:
+  Midrar:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Midrar/Sources
+    resources:
+      - path: Midrar/Resources/Assets.xcassets
+      - path: Midrar/Resources/cinema
+        type: folder
+    info:
+      path: Midrar/Info.plist
+      properties:
+        CFBundleDisplayName: مدرار
+        CFBundleShortVersionString: "3.9"
+        CFBundleVersion: "1"
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSMicrophoneUsageDescription: "نستخدم الميكروفون لحساب استغفارك وذكرك بالصوت تلقائياً بدون إنترنت"
+        NSPhotoLibraryUsageDescription: "لاختيار صورة شخصية لملفك داخل التطبيق"
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false

@@ -1,0 +1,46 @@
+name: Build Midrar iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Build Unsigned Release App
+        run: |
+          xcodebuild -project Midrar.xcodeproj \
+            -scheme Midrar \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean build
+
+      - name: Package Midrar.ipa
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/Midrar.app Payload/
+          zip -r -q Midrar.ipa Payload
+          ls -lh Midrar.ipa
+
+      - name: Upload Midrar.ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Midrar-iOS-IPA
+          path: Midrar.ipa
+          retention-days: 30
