@@ -207,7 +207,7 @@ struct WorshipTrackerView: View {
                             Text(item.name)
                                 .font(.system(size: 11.5, weight: .bold))
                                 .foregroundColor(done ? .white : .primary)
-                            Text(PrayerTimeCalculator.format12h(item.min))
+                            Text(PrayerTimeCalculator.formatTime12h(item.min))
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundColor(done ? .white.opacity(0.9) : .secondary)
                         }
