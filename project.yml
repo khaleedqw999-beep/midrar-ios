@@ -7,20 +7,22 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "5.2"
-    CURRENT_PROJECT_VERSION: "5"
-    PRODUCT_NAME: Midrar
+    MARKETING_VERSION: "5.4"
+    CURRENT_PROJECT_VERSION: "7"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_IDENTITY: ""
     CODE_SIGNING_REQUIRED: "NO"
     CODE_SIGNING_ALLOWED: "NO"
     TARGETED_DEVICE_FAMILY: "1"
-    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 targets:
   Midrar:
     type: application
     platform: iOS
     deploymentTarget: "16.0"
+    settings:
+      base:
+        PRODUCT_NAME: Midrar
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     sources:
       - path: Midrar/Sources
       - path: Midrar/Resources/Assets.xcassets
@@ -31,18 +33,41 @@ targets:
         type: file
         optional: true
         buildPhase: resources
+    dependencies:
+      - target: MidrarWidgetExtension
+        embed: true
     info:
       path: Midrar/Info.plist
       properties:
         CFBundleDisplayName: مدرار
-        CFBundleShortVersionString: "5.2"
-        CFBundleVersion: "5"
+        CFBundleShortVersionString: "5.4"
+        CFBundleVersion: "7"
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSMicrophoneUsageDescription: "نستخدم الميكروفون لحساب استغفارك وذكرك بالصوت تلقائياً بدون إنترنت"
-        NSLocationWhenInUseUsageDescription: "نستخدم موقعك لتحديد مواقيت الصلوات الخمس وتنبيهاتها بدقة حسب مدينتك"
+        NSLocationWhenInUseUsageDescription: "نستخدم موقعك لتحديد مواقيت الصلوات الخمس واتجاه القبلة بدقة حسب مدينتك"
         NSPhotoLibraryUsageDescription: "لاختيار صورة شخصية لملفك داخل التطبيق"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
+
+  MidrarWidgetExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.0"
+    settings:
+      base:
+        PRODUCT_NAME: MidrarWidgetExtension
+        PRODUCT_BUNDLE_IDENTIFIER: com.midrar.Midrar.Widget
+        SKIP_INSTALL: YES
+    sources:
+      - path: MidrarWidget
+    info:
+      path: MidrarWidget/Info.plist
+      properties:
+        CFBundleDisplayName: مدرار
+        CFBundleShortVersionString: "5.4"
+        CFBundleVersion: "7"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension

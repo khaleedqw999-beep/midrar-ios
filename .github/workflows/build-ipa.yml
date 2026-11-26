@@ -56,12 +56,12 @@ jobs:
           path: Midrar.ipa
           retention-days: 30
 
-      - name: Publish GitHub Release v5.2
+      - name: Publish GitHub Release v5.4
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v5.2 >/dev/null 2>&1; then
-            gh release upload v5.2 Midrar.ipa --clobber
+          if gh release view v5.4 >/dev/null 2>&1; then
+            gh release upload v5.4 Midrar.ipa --clobber
           else
-            gh release create v5.2 Midrar.ipa --title "Midrar iOS v5.2" --notes "Midrar iOS V5.2: 100K Mosque Journey + Offline Quran + Auto GPS Prayers"
+            gh release create v5.4 Midrar.ipa --title "Midrar iOS v5.4" --notes "Midrar iOS V5.4: Live Prayer Countdown + Offline Qibla Compass + Lock & Home Widgets"
           fi

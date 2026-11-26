@@ -240,7 +240,7 @@ struct ProfileSettingsView: View {
                     Text("صُنع بحب كصدقة جارية لوالد صانع التطبيق رحمه الله")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                    Text("تطوير: خالد الفقيه • @9.uk00 • الإصدار 5.2")
+                    Text("تطوير: خالد الفقيه • @9.uk00 • الإصدار 5.4")
                         .font(.system(size: 11.5, weight: .bold))
                         .foregroundColor(store.accentColor)
                 }
@@ -251,7 +251,7 @@ struct ProfileSettingsView: View {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(store.accentColor.opacity(0.06))
                 )
-                .padding(.bottom, 24)
+                .padding(.bottom, 96)
             }
             .padding(.horizontal, 20)
         }

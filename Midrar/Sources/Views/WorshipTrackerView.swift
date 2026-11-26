@@ -6,6 +6,7 @@ struct WorshipTrackerView: View {
     @State private var selectedDateKey: String = MidrarStore.todayDateKey()
     @State private var activeAdhkarMode: AdhkarSessionMode? = nil
     @State private var showQuranReader: Bool = false
+    @State private var showQiblaCompass: Bool = false
     @State private var quranStartPage: Int = 1
     @State private var quranSearchQuery: String = ""
     @State private var ayahSearchResults: [QuranAyahItem] = []
@@ -57,7 +58,7 @@ struct WorshipTrackerView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 28)
+            .padding(.bottom, 96)
         }
         .sheet(isPresented: Binding(
             get: { activeAdhkarMode != nil },
@@ -73,6 +74,10 @@ struct WorshipTrackerView: View {
         }
         .fullScreenCover(isPresented: $showQuranReader) {
             QuranReaderView(currentPage: quranStartPage)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showQiblaCompass) {
+            QiblaCompassView()
                 .environmentObject(store)
         }
         .alert("إضافة ذكر خاص", isPresented: $showAddCustomDhikr) {
@@ -182,6 +187,52 @@ struct WorshipTrackerView: View {
             }
             .padding(16)
             .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(hex: "141918")))
+
+            // Live Next-Prayer Countdown + Qibla Compass Button
+            TimelineView(.periodic(from: .now, by: 30)) { timeline in
+                let nextInfo = nextPrayerInfo(at: timeline.date)
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(store.accentColor.opacity(0.14))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 17))
+                            .foregroundColor(store.accentColor)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("الصلاة القادمة: \(nextInfo.name)")
+                            .font(.system(size: 13.5, weight: .bold))
+                            .foregroundColor(.primary)
+                        Text("متبقي \(nextInfo.remainingText) • \(store.state.settings.userCity)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(store.accentColor)
+                    }
+                    Spacer()
+                    Button {
+                        showQiblaCompass = true
+                        HapticsAndAudio.shared.gentleTick()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "safari.fill")
+                                .font(.system(size: 13))
+                            Text("القبلة")
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(store.accentColor))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(Color.cardSurface)
+                        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color.cardBorder))
+                )
+            }
 
             // 1. Five Daily Prayers
             let prayersDone = store.countDone(dateKey: selectedDateKey, keys: ["fajr", "dhuhr", "asr", "maghrib", "isha"])
@@ -644,6 +695,31 @@ struct WorshipTrackerView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func nextPrayerInfo(at date: Date) -> (name: String, remainingText: String) {
+        let cal = Calendar.current
+        let nowMin = cal.component(.hour, from: date) * 60 + cal.component(.minute, from: date)
+        let list: [(String, Int)] = [
+            ("الفجر", activePrayers.fajrMin),
+            ("الظهر", activePrayers.dhuhrMin),
+            ("العصر", activePrayers.asrMin),
+            ("المغرب", activePrayers.maghribMin),
+            ("العشاء", activePrayers.ishaMin)
+        ]
+        var targetName = "الفجر"
+        var diffMin = (activePrayers.fajrMin + 1440) - nowMin
+        for (name, pMin) in list {
+            if pMin > nowMin {
+                targetName = name
+                diffMin = pMin - nowMin
+                break
+            }
+        }
+        let h = diffMin / 60
+        let m = diffMin % 60
+        let formatted = String(format: "%02d:%02d", h, m)
+        return (targetName, formatted)
     }
 
     private func arabicDayName(for key: String) -> String {
