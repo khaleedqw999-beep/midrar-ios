@@ -51,7 +51,7 @@ struct DhikrItem: Identifiable, Codable, Hashable {
     let arabicText: String
     let shortTitle: String
     let virtue: String
-    let effectType: Int // 0=Rain, 1=Tasbih, 2=Salawat, 3=Hawqalah
+    let effectType: Int
     var isCustom: Bool = false
 
     static let defaults: [DhikrItem] = [
@@ -63,6 +63,36 @@ struct DhikrItem: Identifiable, Codable, Hashable {
     ]
 }
 
+enum AdhkarSessionMode {
+    case morning
+    case evening
+    case sleep
+
+    var title: String {
+        switch self {
+        case .morning: return "أذكار الصباح"
+        case .evening: return "أذكار المساء"
+        case .sleep: return "أذكار النوم"
+        }
+    }
+
+    var habitKey: String {
+        switch self {
+        case .morning: return "adhkar_morning"
+        case .evening: return "adhkar_evening"
+        case .sleep: return "adhkar_sleep"
+        }
+    }
+
+    var entries: [AdhkarEntry] {
+        switch self {
+        case .morning: return AdhkarEntry.morning
+        case .evening: return AdhkarEntry.evening
+        case .sleep: return AdhkarEntry.sleep
+        }
+    }
+}
+
 struct AdhkarEntry: Identifiable {
     let id = UUID()
     let text: String
@@ -70,19 +100,35 @@ struct AdhkarEntry: Identifiable {
     let targetCount: Int
 
     static let morning: [AdhkarEntry] = [
+        AdhkarEntry(text: "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ", virtue: "آية الكرسي — أُجير من الجن حتى يمسي", targetCount: 1),
         AdhkarEntry(text: "أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ", virtue: "ذكر الصباح الجامع", targetCount: 1),
+        AdhkarEntry(text: "اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ", virtue: "سيد الاستغفار", targetCount: 1),
         AdhkarEntry(text: "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، عَدَدَ خَلْقِهِ، وَرِضَا نَفْسِهِ، وَزِنَةَ عَرْشِهِ، وَمِدَادَ كَلِمَاتِهِ", virtue: "يُكرّر ٣ مرات صباحاً", targetCount: 3),
         AdhkarEntry(text: "بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ", virtue: "حفظٌ من كل سوء (٣ مرات)", targetCount: 3),
         AdhkarEntry(text: "حَسْبِيَ اللَّهُ لَا إِلَهَ إِلَّا هُوَ عَلَيْهِ تَوَكَّلْتُ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ", virtue: "كفاه الله ما أهمّه (٧ مرات)", targetCount: 7),
-        AdhkarEntry(text: "أَسْتَغْفِرُ اللَّهَ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ", virtue: "توبة واستفتاح للبركة (١٠ مرات)", targetCount: 10)
+        AdhkarEntry(text: "اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ", virtue: "أدركته شفاعة النبي ﷺ (١٠ مرات)", targetCount: 10)
     ]
 
     static let evening: [AdhkarEntry] = [
+        AdhkarEntry(text: "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ", virtue: "آية الكرسي — أُجير من الجن حتى يصبح", targetCount: 1),
         AdhkarEntry(text: "أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ", virtue: "ذكر المساء الجامع", targetCount: 1),
         AdhkarEntry(text: "أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ", virtue: "حصن المساء (٣ مرات)", targetCount: 3),
         AdhkarEntry(text: "بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ", virtue: "حفظٌ من كل سوء (٣ مرات)", targetCount: 3),
         AdhkarEntry(text: "حَسْبِيَ اللَّهُ لَا إِلَهَ إِلَّا هُوَ عَلَيْهِ تَوَكَّلْتُ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ", virtue: "كفاه الله ما أهمّه (٧ مرات)", targetCount: 7),
         AdhkarEntry(text: "اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ", virtue: "عشر صلوات تُدرك بها الشفاعة", targetCount: 10)
+    ]
+
+    static let sleep: [AdhkarEntry] = [
+        AdhkarEntry(text: "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ", virtue: "آية الكرسي — لا يزال عليك من الله حافظ حتى تصبح", targetCount: 1),
+        AdhkarEntry(text: "آمَنَ الرَّسُولُ بِمَا أُنزِلَ إِلَيْهِ مِن رَّبِّهِ وَالْمُؤْمِنُونَ ۚ كُلٌّ آمَنَ بِاللَّهِ وَمَلَائِكَتِهِ وَكُتُبِهِ وَرُسُلِهِ لَا نُفَرِّقُ بَيْنَ أَحَدٍ مِّن رُّسُلِهِ ۚ وَقَالُوا سَمِعْنَا وَأَطَعْنَا ۖ غُفْرَانَكَ رَبَّنَا وَإِلَيْكَ الْمَصِيرُ", virtue: "آخر آيتين من سورة البقرة — من قرأهما في ليلة كفتاه", targetCount: 1),
+        AdhkarEntry(text: "قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ", virtue: "سورة الإخلاص (٣ مرات)", targetCount: 3),
+        AdhkarEntry(text: "قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِن شَرِّ مَا خَلَقَ ۝ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ", virtue: "سورة الفلق (٣ مرات)", targetCount: 3),
+        AdhkarEntry(text: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ", virtue: "سورة الناس (٣ مرات)", targetCount: 3),
+        AdhkarEntry(text: "بِاسْمِكَ رَبِّي وَضَعْتُ جَنْبِي وَبِكَ أَرْفَعُهُ، فَإِنْ أَمْسَكْتَ نَفْسِي فَارْحَمْهَا، وَإِنْ أَرْسَلْتَهَا فَاحْفَظْهَا بِمَا تَحْفَظُ بِهِ عِبَادَكَ الصَّالِحِينَ", virtue: "دعاء النوم في حفظ الله", targetCount: 1),
+        AdhkarEntry(text: "اللَّهُمَّ قِنِي عَذَابَكَ يَوْمَ تَبْعَثُ عِبَادَكَ", virtue: "يُقال ٣ مرات قبل النوم", targetCount: 3),
+        AdhkarEntry(text: "سُبْحَانَ اللَّهِ", virtue: "تسبيح قبل النوم (٣٣ مرة)", targetCount: 33),
+        AdhkarEntry(text: "الْحَمْدُ لِلَّهِ", virtue: "تحميد قبل النوم (٣٣ مرة)", targetCount: 33),
+        AdhkarEntry(text: "اللَّهُ أَكْبَرُ", virtue: "تكبير قبل النوم (٣٤ مرة)", targetCount: 34)
     ]
 }
 
@@ -121,7 +167,62 @@ struct AppSettings: Codable {
     var habitRemindersEnabled: Bool = true
     var themeMode: AppColorSchemeMode = .light
     var accentTheme: AccentPalette = .auto
-    var userCity: String = "عدن"
+    var userCity: String = "لحج"
+
+    // Auto GPS + Live Online Prayer Times (V5.2)
+    var autoLocationPrayerTimes: Bool = true
+    var userLat: Double = 0.0
+    var userLon: Double = 0.0
+    var detectedLocationName: String = ""
+    var cachedPrayerDate: String = ""
+    var cachedFajrMin: Int = -1
+    var cachedSunriseMin: Int = -1
+    var cachedDhuhrMin: Int = -1
+    var cachedAsrMin: Int = -1
+    var cachedMaghribMin: Int = -1
+    var cachedIshaMin: Int = -1
+
+    // Daily Quran Wird & Mushaf (V5.2)
+    var quranDailyPages: Int = 4
+    var quranCurrentPage: Int = 1
+    var quranPagesReadToday: Int = 0
+    var quranLastReadDate: String = ""
+    var quranWirdReminderEnabled: Bool = true
+    var quranWirdHour: Int = 21
+    var quranWirdMinute: Int = 0
+    var quranFontSize: CGFloat = 22
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? true
+        hapticsEnabled = try c.decodeIfPresent(Bool.self, forKey: .hapticsEnabled) ?? true
+        smartReminders = try c.decodeIfPresent(Bool.self, forKey: .smartReminders) ?? true
+        habitRemindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .habitRemindersEnabled) ?? true
+        themeMode = try c.decodeIfPresent(AppColorSchemeMode.self, forKey: .themeMode) ?? .light
+        accentTheme = try c.decodeIfPresent(AccentPalette.self, forKey: .accentTheme) ?? .auto
+        userCity = try c.decodeIfPresent(String.self, forKey: .userCity) ?? "لحج"
+        autoLocationPrayerTimes = try c.decodeIfPresent(Bool.self, forKey: .autoLocationPrayerTimes) ?? true
+        userLat = try c.decodeIfPresent(Double.self, forKey: .userLat) ?? 0.0
+        userLon = try c.decodeIfPresent(Double.self, forKey: .userLon) ?? 0.0
+        detectedLocationName = try c.decodeIfPresent(String.self, forKey: .detectedLocationName) ?? ""
+        cachedPrayerDate = try c.decodeIfPresent(String.self, forKey: .cachedPrayerDate) ?? ""
+        cachedFajrMin = try c.decodeIfPresent(Int.self, forKey: .cachedFajrMin) ?? -1
+        cachedSunriseMin = try c.decodeIfPresent(Int.self, forKey: .cachedSunriseMin) ?? -1
+        cachedDhuhrMin = try c.decodeIfPresent(Int.self, forKey: .cachedDhuhrMin) ?? -1
+        cachedAsrMin = try c.decodeIfPresent(Int.self, forKey: .cachedAsrMin) ?? -1
+        cachedMaghribMin = try c.decodeIfPresent(Int.self, forKey: .cachedMaghribMin) ?? -1
+        cachedIshaMin = try c.decodeIfPresent(Int.self, forKey: .cachedIshaMin) ?? -1
+        quranDailyPages = try c.decodeIfPresent(Int.self, forKey: .quranDailyPages) ?? 4
+        quranCurrentPage = try c.decodeIfPresent(Int.self, forKey: .quranCurrentPage) ?? 1
+        quranPagesReadToday = try c.decodeIfPresent(Int.self, forKey: .quranPagesReadToday) ?? 0
+        quranLastReadDate = try c.decodeIfPresent(String.self, forKey: .quranLastReadDate) ?? ""
+        quranWirdReminderEnabled = try c.decodeIfPresent(Bool.self, forKey: .quranWirdReminderEnabled) ?? true
+        quranWirdHour = try c.decodeIfPresent(Int.self, forKey: .quranWirdHour) ?? 21
+        quranWirdMinute = try c.decodeIfPresent(Int.self, forKey: .quranWirdMinute) ?? 0
+        quranFontSize = try c.decodeIfPresent(CGFloat.self, forKey: .quranFontSize) ?? 22
+    }
 }
 
 struct AppState: Codable {
@@ -139,6 +240,8 @@ struct AppState: Codable {
     var dailyHabitsLog: [String: [String: Bool]] = [:]
     var completedCyclesCount: Int = 0
     var hasClaimedCurrentCycleMedal: Bool = false
+    var hasUnlockedMosqueChapter: Bool = false
+    var seasonVersion: Int = 0
     var duas: [DuaItem] = []
     var userId: String = UUID().uuidString
     var userName: String = ""
@@ -147,6 +250,36 @@ struct AppState: Codable {
     var hasCompletedOnboarding: Bool = false
     var historyLog: [String: Int] = [:]
     var settings: AppSettings = AppSettings()
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        totalIstighfar = try c.decodeIfPresent(Int64.self, forKey: .totalIstighfar) ?? 0
+        todayCount = try c.decodeIfPresent(Int.self, forKey: .todayCount) ?? 0
+        dailyGoal = try c.decodeIfPresent(Int.self, forKey: .dailyGoal) ?? 500
+        currentStreak = try c.decodeIfPresent(Int.self, forKey: .currentStreak) ?? 1
+        longestStreak = try c.decodeIfPresent(Int.self, forKey: .longestStreak) ?? 1
+        lastActiveDate = try c.decodeIfPresent(String.self, forKey: .lastActiveDate) ?? ""
+        lastTapTimestamp = try c.decodeIfPresent(TimeInterval.self, forKey: .lastTapTimestamp) ?? 0
+        raindropsCurrency = try c.decodeIfPresent(Int.self, forKey: .raindropsCurrency) ?? 0
+        activeDhikrId = try c.decodeIfPresent(String.self, forKey: .activeDhikrId) ?? "istighfar_1"
+        dhikrLifetimeCounts = try c.decodeIfPresent([String: Int64].self, forKey: .dhikrLifetimeCounts) ?? [:]
+        customDhikrs = try c.decodeIfPresent([DhikrItem].self, forKey: .customDhikrs) ?? []
+        dailyHabitsLog = try c.decodeIfPresent([String: [String: Bool]].self, forKey: .dailyHabitsLog) ?? [:]
+        completedCyclesCount = try c.decodeIfPresent(Int.self, forKey: .completedCyclesCount) ?? 0
+        hasClaimedCurrentCycleMedal = try c.decodeIfPresent(Bool.self, forKey: .hasClaimedCurrentCycleMedal) ?? false
+        hasUnlockedMosqueChapter = try c.decodeIfPresent(Bool.self, forKey: .hasUnlockedMosqueChapter) ?? false
+        seasonVersion = try c.decodeIfPresent(Int.self, forKey: .seasonVersion) ?? 0
+        duas = try c.decodeIfPresent([DuaItem].self, forKey: .duas) ?? []
+        userId = try c.decodeIfPresent(String.self, forKey: .userId) ?? UUID().uuidString
+        userName = try c.decodeIfPresent(String.self, forKey: .userName) ?? ""
+        userAge = try c.decodeIfPresent(Int.self, forKey: .userAge) ?? 0
+        userGender = try c.decodeIfPresent(String.self, forKey: .userGender) ?? "male"
+        hasCompletedOnboarding = try c.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding) ?? false
+        historyLog = try c.decodeIfPresent([String: Int].self, forKey: .historyLog) ?? [:]
+        settings = try c.decodeIfPresent(AppSettings.self, forKey: .settings) ?? AppSettings()
+    }
 }
 
 extension Color {

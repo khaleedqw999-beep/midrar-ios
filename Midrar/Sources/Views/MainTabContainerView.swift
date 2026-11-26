@@ -69,6 +69,7 @@ struct MainTabContainerView: View {
         }
         .onAppear {
             NotificationService.configureDelegate()
+            LocationPrayerService.shared.requestAndSync(store: store, userTriggered: false)
             if !store.state.hasCompletedOnboarding {
                 showOnboarding = true
             }
@@ -91,10 +92,15 @@ struct MainTabContainerView: View {
             }
             .environmentObject(store)
         }
-        .alert("مبارك إتمام الدورة 🏅", isPresented: $store.showCycleCelebration) {
+        .alert("🕌 مبارك! أتممت المرحلة الأولى بنجاح", isPresented: $store.showMosqueChapterCelebration) {
+            Button("ابدأ بناء المسجد المبارك 🕌") { store.showMosqueChapterCelebration = false }
+        } message: {
+            Text("بارك الله في عملك وثبّت أجرك! أتممت ١٥,٠٠٠ ذكر واكتملت واحتك الخضراء، وانتقلت الآن إلى المرحلة الثانية: بناء المسجد المبارك خطوةً بخطوة حتى ١٠٠,٠٠٠ ذكر 🌿✨")
+        }
+        .alert("🕌🏅 أتممت رحلة الـ ١٠٠,٠٠٠ ذكر!", isPresented: $store.showCycleCelebration) {
             Button("الحمد لله") { store.showCycleCelebration = false }
         } message: {
-            Text("أتممت ١٥,٠٠٠ ذكر ورويت واحتك بالكامل! حصلت على وسام الإنجاز الذهبي 🏅 بجانب اسمك.")
+            Text("مبارك لك! أتممت ١٠٠,٠٠٠ ذكر واكتمل بناء المسجد المبارك وسط واحتك، وحصلت على وسام الإنجاز الذهبي 🏅 بجانب اسمك.")
         }
     }
 

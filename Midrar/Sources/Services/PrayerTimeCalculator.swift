@@ -18,6 +18,7 @@ struct DailyPrayers {
 
 enum PrayerTimeCalculator {
     static let cities: [CityCoords] = [
+        CityCoords(name: "لحج", lat: 13.0567, lng: 44.8819, tz: 3),
         CityCoords(name: "عدن", lat: 12.7855, lng: 45.0187, tz: 3),
         CityCoords(name: "صنعاء", lat: 15.3694, lng: 44.1910, tz: 3),
         CityCoords(name: "تعز", lat: 13.5789, lng: 44.0178, tz: 3),
@@ -40,8 +41,32 @@ enum PrayerTimeCalculator {
         CityCoords(name: "الكويت", lat: 29.3759, lng: 47.9774, tz: 3)
     ]
 
+    static func getActivePrayers(settings: AppSettings) -> DailyPrayers {
+        let today = MidrarStore.todayDateKey()
+        if settings.cachedPrayerDate == today && settings.cachedFajrMin >= 0 && settings.cachedIshaMin >= 0 {
+            return DailyPrayers(
+                fajrMin: settings.cachedFajrMin,
+                sunriseMin: settings.cachedSunriseMin >= 0 ? settings.cachedSunriseMin : settings.cachedFajrMin + 75,
+                dhuhrMin: settings.cachedDhuhrMin,
+                asrMin: settings.cachedAsrMin,
+                maghribMin: settings.cachedMaghribMin,
+                ishaMin: settings.cachedIshaMin
+            )
+        }
+        if settings.autoLocationPrayerTimes && (abs(settings.userLat) > 0.001 || abs(settings.userLon) > 0.001) {
+            let tz = Double(TimeZone.current.secondsFromGMT()) / 3600.0
+            return computeForCoordinates(lat: settings.userLat, lng: settings.userLon, tz: tz)
+        }
+        return computeForToday(cityName: settings.userCity)
+    }
+
     static func computeForToday(cityName: String) -> DailyPrayers {
         let city = cities.first(where: { $0.name == cityName }) ?? cities[0]
+        return computeForCoordinates(lat: city.lat, lng: city.lng, tz: city.tz)
+    }
+
+    static func computeForCoordinates(lat: Double, lng: Double, tz: Double) -> DailyPrayers {
+        let city = CityCoords(name: "", lat: lat, lng: lng, tz: tz)
         let now = Date()
         let cal = Calendar(identifier: .gregorian)
         let y = Double(cal.component(.year, from: now))

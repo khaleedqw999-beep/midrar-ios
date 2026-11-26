@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileSettingsView: View {
     @EnvironmentObject var store: MidrarStore
+    @ObservedObject private var locService = LocationPrayerService.shared
     @State private var showEditProfile = false
 
     var body: some View {
@@ -162,7 +163,28 @@ struct ProfileSettingsView: View {
                         }
                         .tint(store.accentColor)
                     }
-                    Text("تُحسب مواقيت الصلوات الخمس وتُضبط الإشعارات عليها فلكياً بدون إنترنت.")
+                    Button {
+                        LocationPrayerService.shared.requestAndSync(store: store, userTriggered: true)
+                        HapticsAndAudio.shared.gentleTick()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: locService.isSyncing ? "arrow.triangle.2.circlepath" : "location.fill")
+                                .font(.system(size: 12.5, weight: .bold))
+                            Text(locService.isSyncing ? "جاري تحديد موقعك..." : "تحديد تلقائي حسب موقعي (GPS + إنترنت)")
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(Capsule().fill(store.accentColor))
+                    }
+                    .buttonStyle(.plain)
+                    if let stMsg = locService.lastStatusMessage {
+                        Text(stMsg)
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundColor(store.accentColor)
+                    }
+                    Text("تُضبط مواقيت الصلوات تلقائياً من الإنترنت حسب موقعك مع دعم العمل بدون إنترنت.")
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
@@ -218,7 +240,7 @@ struct ProfileSettingsView: View {
                     Text("صُنع بحب كصدقة جارية لوالد صانع التطبيق رحمه الله")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                    Text("تطوير: خالد الفقيه • @9.uk00 • الإصدار 4.0")
+                    Text("تطوير: خالد الفقيه • @9.uk00 • الإصدار 5.2")
                         .font(.system(size: 11.5, weight: .bold))
                         .foregroundColor(store.accentColor)
                 }

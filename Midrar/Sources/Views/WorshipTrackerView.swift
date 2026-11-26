@@ -2,30 +2,33 @@ import SwiftUI
 
 struct WorshipTrackerView: View {
     @EnvironmentObject var store: MidrarStore
-    @State private var subTab: Int = 0 // 0=المتابعة, 1=مكتبة الأذكار
+    @State private var activeSubTab: Int = 0 // 0=المتابعة, 1=المصحف والورد, 2=مكتبة الأذكار
     @State private var selectedDateKey: String = MidrarStore.todayDateKey()
-    @State private var showMorningAdhkar = false
-    @State private var showEveningAdhkar = false
-    @State private var showAddCustomDhikr = false
-    @State private var customDhikrTitle = ""
+    @State private var activeAdhkarMode: AdhkarSessionMode? = nil
+    @State private var showQuranReader: Bool = false
+    @State private var quranStartPage: Int = 1
+    @State private var quranSearchQuery: String = ""
+    @State private var ayahSearchResults: [QuranAyahItem] = []
+    @State private var showAddCustomDhikr: Bool = false
+    @State private var customDhikrText: String = ""
 
-    private var weekDays: [(key: String, shortName: String, dayNum: String)] {
-        let cal = Calendar(identifier: .gregorian)
+    private var activePrayers: DailyPrayers {
+        PrayerTimeCalculator.getActivePrayers(settings: store.state.settings)
+    }
+
+    private var weekDates: [(dayShort: String, dayNum: Int, key: String)] {
+        let cal = Calendar.current
         let now = Date()
-        let weekday = cal.component(.weekday, from: now) // 1=Sun .. 7=Sat
-        let offsetFromMon = (weekday == 1) ? 6 : (weekday - 2)
-        let monday = cal.date(byAdding: .day, value: -offsetFromMon, to: now) ?? now
+        let weekday = cal.component(.weekday, from: now)
+        let offsetToMonday = (weekday == 1) ? -6 : (2 - weekday)
+        guard let monday = cal.date(byAdding: .day, value: offsetToMonday, to: now) else { return [] }
         let names = ["إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت", "أحد"]
-        let dfKey = DateFormatter()
-        dfKey.locale = Locale(identifier: "en_US_POSIX")
-        dfKey.dateFormat = "yyyy-MM-dd"
-        let dfDay = DateFormatter()
-        dfDay.locale = Locale(identifier: "en_US_POSIX")
-        dfDay.dateFormat = "d"
-
-        return (0..<7).map { i in
-            let d = cal.date(byAdding: .day, value: i, to: monday) ?? now
-            return (dfKey.string(from: d), names[i], dfDay.string(from: d))
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        df.locale = Locale(identifier: "en_US_POSIX")
+        return (0..<7).compactMap { i in
+            guard let d = cal.date(byAdding: .day, value: i, to: monday) else { return nil }
+            return (names[i], cal.component(.day, from: d), df.string(from: d))
         }
     }
 
@@ -33,252 +36,243 @@ struct WorshipTrackerView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
                 Text("متابعة العبادات")
-                    .font(.system(size: 18, weight: .bold))
-                    .padding(.top, 8)
+                    .font(.system(size: 22, weight: .heavy))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 10)
 
-                // Clean Underlined 2-Tab Switcher
+                // Clean 3-Segment Underlined Switcher (المتابعة | المصحف والورد | مكتبة الأذكار)
                 HStack(spacing: 0) {
                     subTabButton(title: "المتابعة", idx: 0)
-                    subTabButton(title: "مكتبة الأذكار", idx: 1)
+                    subTabButton(title: "المصحف والورد", idx: 1)
+                    subTabButton(title: "مكتبة الأذكار", idx: 2)
                 }
-                .overlay(alignment: .bottom) { Divider() }
+                .overlay(Divider(), alignment: .bottom)
 
-                if subTab == 0 {
-                    trackerContent
+                if activeSubTab == 0 {
+                    trackerSection
+                } else if activeSubTab == 1 {
+                    quranAndWirdSection
                 } else {
-                    dhikrLibraryContent
+                    dhikrLibrarySection
                 }
-
-                Spacer(minLength: 90)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 28)
         }
-        .sheet(isPresented: $showMorningAdhkar) {
-            AdhkarSessionSheetView(isMorning: true) {
-                store.recordDhikrTap()
-            } onComplete: {
-                store.setHabitDone(dateKey: selectedDateKey, habitKey: "adhkar_morning", done: true)
+        .sheet(isPresented: Binding(
+            get: { activeAdhkarMode != nil },
+            set: { if !$0 { activeAdhkarMode = nil } }
+        )) {
+            if let mode = activeAdhkarMode {
+                AdhkarSessionSheetView(mode: mode) {
+                    store.setHabitDone(dateKey: selectedDateKey, habitKey: mode.habitKey, done: true)
+                    HapticsAndAudio.shared.goalCompletedFeedback()
+                }
+                .environmentObject(store)
             }
-            .environmentObject(store)
         }
-        .sheet(isPresented: $showEveningAdhkar) {
-            AdhkarSessionSheetView(isMorning: false) {
-                store.recordDhikrTap()
-            } onComplete: {
-                store.setHabitDone(dateKey: selectedDateKey, habitKey: "adhkar_evening", done: true)
-            }
-            .environmentObject(store)
+        .fullScreenCover(isPresented: $showQuranReader) {
+            QuranReaderView(currentPage: quranStartPage)
+                .environmentObject(store)
         }
         .alert("إضافة ذكر خاص", isPresented: $showAddCustomDhikr) {
-            TextField("مثال: سبحان الله وبحمده", text: $customDhikrTitle)
-            Button("إضافة") {
-                let t = customDhikrTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            TextField("اكتب صيغة الذكر...", text: $customDhikrText)
+            Button("حفظ") {
+                let t = customDhikrText.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !t.isEmpty {
-                    let item = DhikrItem(id: "custom_\(UUID().uuidString.prefix(6))", arabicText: t, shortTitle: String(t.prefix(18)), virtue: "ذكر خاص بك", effectType: 0, isCustom: true)
+                    let item = DhikrItem(id: "custom_\(UUID().uuidString)", arabicText: t, shortTitle: String(t.prefix(24)), virtue: "ذكر خاص مضاف بيدك", effectType: 0, isCustom: true)
                     store.state.customDhikrs.append(item)
                     store.state.activeDhikrId = item.id
                     store.saveImmediate()
-                    customDhikrTitle = ""
+                    customDhikrText = ""
                 }
             }
-            Button("إلغاء", role: .cancel) {}
+            Button("إلغاء", role: .cancel) { customDhikrText = "" }
         }
     }
 
     private func subTabButton(title: String, idx: Int) -> some View {
-        let active = (subTab == idx)
+        let active = (activeSubTab == idx)
         return Button {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-                subTab = idx
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+                activeSubTab = idx
             }
+            HapticsAndAudio.shared.gentleTick()
         } label: {
             VStack(spacing: 8) {
                 Text(title)
-                    .font(.system(size: 14, weight: active ? .bold : .medium))
+                    .font(.system(size: 13.5, weight: active ? .bold : .medium))
                     .foregroundColor(active ? store.accentColor : .secondary)
+                    .lineLimit(1)
                 Rectangle()
                     .fill(active ? store.accentColor : Color.clear)
                     .frame(height: 2.5)
             }
             .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
-    private var trackerContent: some View {
-        let pct = store.dailyHabitScore(dateKey: selectedDateKey)
-        let prayers = PrayerTimeCalculator.computeForToday(cityName: store.state.settings.userCity)
-        let prayerDefs: [(key: String, name: String, icon: String, time: String)] = [
-            ("fajr", "الفجر", "sunrise", PrayerTimeCalculator.formatTime12h(prayers.fajrMin)),
-            ("dhuhr", "الظهر", "sun.max", PrayerTimeCalculator.formatTime12h(prayers.dhuhrMin)),
-            ("asr", "العصر", "cloud.sun", PrayerTimeCalculator.formatTime12h(prayers.asrMin)),
-            ("maghrib", "المغرب", "sunset", PrayerTimeCalculator.formatTime12h(prayers.maghribMin)),
-            ("isha", "العشاء", "moon", PrayerTimeCalculator.formatTime12h(prayers.ishaMin))
-        ]
-
-        return VStack(alignment: .leading, spacing: 18) {
-            // Dark Obsidian Date + Completion Ring + 7-Day Strip
-            VStack(spacing: 16) {
+    // MARK: - Sub-Tab 0: Worship Tracker (No Fasting, Sleep Adhkar Interactive)
+    private var trackerSection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            // Obsidian Date + Progress Ring + 7-Day Strip
+            VStack(spacing: 14) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(arabicDayName(for: selectedDateKey))
-                            .font(.system(size: 19, weight: .bold))
+                            .font(.system(size: 20, weight: .heavy))
                             .foregroundColor(.white)
-                        Text("\(hijriString(for: selectedDateKey))  •  \(selectedDateKey)")
-                            .font(.system(size: 11.5))
-                            .foregroundColor(.white.opacity(0.65))
+                        Text("\(hijriString(for: selectedDateKey)) • \(selectedDateKey)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.68))
                     }
                     Spacer()
+                    let pct = store.dailyHabitScore(dateKey: selectedDateKey)
                     ZStack {
                         Circle()
-                            .stroke(Color.white.opacity(0.15), lineWidth: 4)
+                            .stroke(Color.white.opacity(0.14), lineWidth: 4.5)
                         Circle()
                             .trim(from: 0, to: CGFloat(pct) / 100.0)
-                            .stroke(store.accentColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .stroke(store.accentColor, style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
                             .rotationEffect(.degrees(-90))
-                        Text("\(pct)%")
+                        Text("\(pct)٪")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.white)
                     }
-                    .frame(width: 48, height: 48)
+                    .frame(width: 50, height: 50)
                 }
 
-                HStack(spacing: 0) {
-                    ForEach(weekDays, id: \.key) { slot in
-                        let slotPct = store.dailyHabitScore(dateKey: slot.key)
-                        let isSel = (slot.key == selectedDateKey)
+                HStack(spacing: 4) {
+                    ForEach(weekDates, id: \.key) { slot in
+                        let selected = (slot.key == selectedDateKey)
+                        let dayPct = store.dailyHabitScore(dateKey: slot.key)
                         Button {
                             selectedDateKey = slot.key
                             HapticsAndAudio.shared.gentleTick()
                         } label: {
-                            VStack(spacing: 6) {
-                                Text(slot.shortName)
-                                    .font(.system(size: 10.5))
-                                    .foregroundColor(isSel ? .white : .white.opacity(0.55))
-                                Circle()
-                                    .fill(slotPct >= 70 ? store.accentColor : Color.white.opacity(0.14))
-                                    .overlay(Circle().stroke(slotPct > 0 && slotPct < 70 ? store.accentColor : Color.clear, lineWidth: 2))
-                                    .frame(width: 18, height: 18)
-                                Text(slot.dayNum)
-                                    .font(.system(size: 11, weight: isSel ? .bold : .regular))
-                                    .foregroundColor(isSel ? store.accentColor : .white.opacity(0.65))
+                            VStack(spacing: 5) {
+                                Text(slot.dayShort)
+                                    .font(.system(size: 10, weight: selected ? .bold : .medium))
+                                    .foregroundColor(selected ? .white : .white.opacity(0.55))
+                                ZStack {
+                                    Circle()
+                                        .stroke(selected ? store.accentColor : Color.white.opacity(0.18), lineWidth: 1.5)
+                                        .frame(width: 20, height: 20)
+                                    if dayPct >= 100 {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(store.accentColor)
+                                    } else if dayPct > 0 {
+                                        Circle().fill(store.accentColor).frame(width: 7, height: 7)
+                                    }
+                                }
+                                Text("\(slot.dayNum)")
+                                    .font(.system(size: 11, weight: selected ? .bold : .medium))
+                                    .foregroundColor(selected ? .white : .white.opacity(0.65))
                             }
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(selected ? Color.white.opacity(0.12) : Color.clear))
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(hex: "151E24")))
+            .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(hex: "141918")))
 
-            // Section 1: 5 Prayers
-            HStack {
-                Text("الصلوات").font(.system(size: 16, weight: .bold))
-                Spacer()
-                Text("\(store.countDone(dateKey: selectedDateKey, keys: ["fajr", "dhuhr", "asr", "maghrib", "isha"]))/5")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-            }
+            // 1. Five Daily Prayers
+            let prayersDone = store.countDone(dateKey: selectedDateKey, keys: ["fajr", "dhuhr", "asr", "maghrib", "isha"])
+            sectionHeader(title: "الصلوات — \(store.state.settings.userCity)", counter: "\(prayersDone)/5")
 
+            let pItems: [(key: String, name: String, icon: String, min: Int)] = [
+                ("fajr", "الفجر", "sunrise", activePrayers.fajrMin),
+                ("dhuhr", "الظهر", "sun.max", activePrayers.dhuhrMin),
+                ("asr", "العصر", "sun.haze", activePrayers.asrMin),
+                ("maghrib", "المغرب", "sunset", activePrayers.maghribMin),
+                ("isha", "العشاء", "moon.stars", activePrayers.ishaMin)
+            ]
             HStack(spacing: 6) {
-                ForEach(prayerDefs, id: \.key) { p in
-                    let done = store.isHabitDone(dateKey: selectedDateKey, habitKey: p.key)
+                ForEach(pItems, id: \.key) { item in
+                    let done = store.isHabitDone(dateKey: selectedDateKey, habitKey: item.key)
                     Button {
-                        store.toggleHabit(dateKey: selectedDateKey, habitKey: p.key)
+                        store.toggleHabit(dateKey: selectedDateKey, habitKey: item.key)
                     } label: {
                         VStack(spacing: 6) {
-                            Text(p.name)
-                                .font(.system(size: 11.5, weight: done ? .bold : .medium))
-                                .foregroundColor(done ? store.accentColor : .secondary)
-                            Image(systemName: p.icon)
-                                .font(.system(size: 16))
-                                .foregroundColor(done ? store.accentColor : .secondary)
-                            Text(p.time)
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.primary)
+                            Image(systemName: done ? "\(item.icon).fill" : item.icon)
+                                .font(.system(size: 17))
+                                .foregroundColor(done ? .white : .secondary)
+                            Text(item.name)
+                                .font(.system(size: 11.5, weight: .bold))
+                                .foregroundColor(done ? .white : .primary)
+                            Text(PrayerTimeCalculator.format12h(item.min))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(done ? .white.opacity(0.9) : .secondary)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                         .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.cardSurface)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(done ? store.accentColor : Color.cardBorder, lineWidth: done ? 1.6 : 1))
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(done ? store.accentColor : Color.cardSurface)
+                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(done ? store.accentColor : Color.cardBorder))
                         )
                     }
                     .buttonStyle(.plain)
                 }
             }
 
-            // Section 2: Adhkar
-            Text("الأذكار").font(.system(size: 16, weight: .bold))
+            // 2. Adhkar (Morning, Evening, AND Sleep all launch sequential session!)
+            let adhkarDone = store.countDone(dateKey: selectedDateKey, keys: ["adhkar_morning", "adhkar_evening", "adhkar_sleep"])
+            sectionHeader(title: "الأذكار", counter: "\(adhkarDone)/3")
             VStack(spacing: 8) {
-                habitRow(key: "adhkar_morning", title: "أذكار الصباح", subtitle: "افتح الورد المتسلسل أو اضغط للتعليم", icon: "sunrise") {
-                    if !store.isHabitDone(dateKey: selectedDateKey, habitKey: "adhkar_morning") {
-                        showMorningAdhkar = true
-                    } else {
-                        store.toggleHabit(dateKey: selectedDateKey, habitKey: "adhkar_morning")
-                    }
+                habitRow(key: "adhkar_morning", title: "أذكار الصباح", subtitle: "افتح الورد المتسلسل مع زر السابق والتالي", icon: "sunrise") {
+                    activeAdhkarMode = .morning
                 }
-                habitRow(key: "adhkar_evening", title: "أذكار المساء", subtitle: "افتح الورد المتسلسل أو اضغط للتعليم", icon: "sunset") {
-                    if !store.isHabitDone(dateKey: selectedDateKey, habitKey: "adhkar_evening") {
-                        showEveningAdhkar = true
-                    } else {
-                        store.toggleHabit(dateKey: selectedDateKey, habitKey: "adhkar_evening")
-                    }
+                habitRow(key: "adhkar_evening", title: "أذكار المساء", subtitle: "افتح الورد المتسلسل مع زر السابق والتالي", icon: "sunset") {
+                    activeAdhkarMode = .evening
                 }
-                habitRow(key: "adhkar_sleep", title: "أذكار النوم", subtitle: "تحصين المسلم قبل النوم حتى الفجر", icon: "bed.double")
+                habitRow(key: "adhkar_sleep", title: "أذكار النوم", subtitle: "افتح أذكار النوم المتسلسلة قبل النوم", icon: "moon.zzz") {
+                    activeAdhkarMode = .sleep
+                }
             }
 
-            // Section 3: Quran
-            Text("القرآن الكريم").font(.system(size: 16, weight: .bold))
-            habitRow(key: "quran_daily", title: "قراءة القرآن", subtitle: "ورد يومي من القرآن الكريم", icon: "book")
-
-            // Section 4: Daily Worship
-            HStack {
-                Text("عبادات يومية").font(.system(size: 16, weight: .bold))
-                Spacer()
-                Text("\(store.isHabitDone(dateKey: selectedDateKey, habitKey: "duha") ? 1 : 0)/1")
-                    .font(.system(size: 13)).foregroundColor(.secondary)
+            // 3. Quran Daily Reading (Opens Mushaf directly)
+            let qDone = store.isHabitDone(dateKey: selectedDateKey, habitKey: "quran_daily") ? 1 : 0
+            sectionHeader(title: "القرآن الكريم", counter: "\(qDone)/1")
+            habitRow(key: "quran_daily", title: "ورد القرآن اليومي", subtitle: "اضغط لفتح المصحف على صفحة \(QuranRepository.toArabicDigits(store.state.settings.quranCurrentPage))", icon: "book") {
+                quranStartPage = store.state.settings.quranCurrentPage
+                showQuranReader = true
             }
-            habitRow(key: "duha", title: "صلاة الضحى", subtitle: "من ٢ إلى ٨ ركعات بعد شروق الشمس", icon: "sun.max")
 
-            // Section 5: Sunnah Rawatib
-            HStack {
-                Text("سنن رواتب").font(.system(size: 16, weight: .bold))
-                Spacer()
-                Text("\(store.countDone(dateKey: selectedDateKey, keys: ["sunnah_fajr", "sunnah_dhuhr_pre", "sunnah_dhuhr_post", "sunnah_maghrib", "sunnah_isha", "qiyam", "witr"]))/7")
-                    .font(.system(size: 13)).foregroundColor(.secondary)
-            }
+            // 4. Daily Worship
+            let dDone = store.isHabitDone(dateKey: selectedDateKey, habitKey: "duha") ? 1 : 0
+            sectionHeader(title: "عبادات يومية", counter: "\(dDone)/1")
+            habitRow(key: "duha", title: "صلاة الضحى", subtitle: "ركعتان إلى ثمان ركعات بعد الشروق", icon: "sun.max")
+
+            // 5. Sunnah Rawatib
+            let sunnahKeys = ["sunnah_fajr", "sunnah_dhuhr_pre", "sunnah_dhuhr_post", "sunnah_maghrib", "sunnah_isha", "qiyam", "witr"]
+            let sDone = store.countDone(dateKey: selectedDateKey, keys: sunnahKeys)
+            sectionHeader(title: "سنن رواتب", counter: "\(sDone)/7")
             VStack(spacing: 8) {
-                habitRow(key: "sunnah_fajr", title: "سنة الفجر", subtitle: "ركعتان قبل صلاة الفجر", icon: "building.columns")
-                habitRow(key: "sunnah_dhuhr_pre", title: "سنة الظهر القبلية", subtitle: "٤ ركعات قبل صلاة الظهر", icon: "building.columns")
-                habitRow(key: "sunnah_dhuhr_post", title: "سنة الظهر البعدية", subtitle: "ركعتان بعد صلاة الظهر", icon: "building.columns")
-                habitRow(key: "sunnah_maghrib", title: "سنة المغرب", subtitle: "ركعتان بعد صلاة المغرب", icon: "building.columns")
-                habitRow(key: "sunnah_isha", title: "سنة العشاء", subtitle: "ركعتان بعد صلاة العشاء", icon: "building.columns")
-                habitRow(key: "qiyam", title: "قيام الليل", subtitle: "من بعد صلاة العشاء حتى طلوع الفجر", icon: "moon.zzz")
-                habitRow(key: "witr", title: "صلاة الوتر", subtitle: "ركعة أو ثلاث أو خمس أو سبع أو إحدى عشرة", icon: "hands.sparkles")
+                habitRow(key: "sunnah_fajr", title: "سنة الفجر", subtitle: "ركعتان قبل صلاة الفجر", icon: "sparkles")
+                habitRow(key: "sunnah_dhuhr_pre", title: "سنة الظهر القبلية", subtitle: "٤ ركعات قبل صلاة الظهر", icon: "sparkles")
+                habitRow(key: "sunnah_dhuhr_post", title: "سنة الظهر البعدية", subtitle: "ركعتان بعد صلاة الظهر", icon: "sparkles")
+                habitRow(key: "sunnah_maghrib", title: "سنة المغرب", subtitle: "ركعتان بعد صلاة المغرب", icon: "sparkles")
+                habitRow(key: "sunnah_isha", title: "سنة العشاء", subtitle: "ركعتان بعد صلاة العشاء", icon: "sparkles")
+                habitRow(key: "qiyam", title: "قيام الليل", subtitle: "من بعد العشاء حتى الفجر", icon: "moon")
+                habitRow(key: "witr", title: "صلاة الوتر", subtitle: "ركعة أو ثلاث أو أكثر", icon: "star")
             }
 
-            // Section 6: Fasting
-            HStack(spacing: 8) {
-                Text("الصيام").font(.system(size: 16, weight: .bold))
-                Text(fastingBadge(for: selectedDateKey))
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(store.accentColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.cardSurface))
-            }
-            habitRow(key: "fasting", title: "صمت اليوم", subtitle: "صيام التطوع أو الأيام البيض", icon: "sparkles")
-
-            // Score Breakdown
-            VStack(alignment: .leading, spacing: 8) {
-                Text("% كيف يُحسب الإنجاز؟")
+            // Rebalanced 100% Score Legend (No Fasting)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("٪ كيف يُحسب الإنجاز اليومي؟")
                     .font(.system(size: 12.5, weight: .bold))
                     .foregroundColor(.secondary)
-                Text("الصلوات 50%  •  الأذكار 10%  •  القرآن 10%\nعبادات يومية 10%  •  النوافل 10%  •  الصيام 10%")
-                    .font(.system(size: 11.5))
+                Text("الصلوات 50٪  •  الأذكار 15٪  •  القرآن 15٪\nعبادات يومية 10٪  •  النوافل 10٪")
+                    .font(.system(size: 12))
+                    .foregroundColor(.primary)
                     .lineSpacing(4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -287,59 +281,308 @@ struct WorshipTrackerView: View {
         }
     }
 
-    private var dhikrLibraryContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Button { showMorningAdhkar = true } label: {
-                    Text("أذكار الصباح")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity).frame(height: 44)
-                        .background(Capsule().fill(store.accentColor))
-                }
-                Button { showEveningAdhkar = true } label: {
-                    Text("أذكار المساء")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity).frame(height: 44)
-                        .background(Capsule().fill(Color.cardSurface).overlay(Capsule().stroke(Color.cardBorder)))
-                }
-            }
+    // MARK: - Sub-Tab 1: Integrated Offline Quran & Daily Wird Planner
+    private var quranAndWirdSection: some View {
+        let today = MidrarStore.todayDateKey()
+        let readToday = store.state.settings.quranLastReadDate == today ? store.state.settings.quranPagesReadToday : 0
+        let goal = max(1, store.state.settings.quranDailyPages)
+        let khatmahDays = Int(ceil(604.0 / Double(goal)))
+        let progress = min(1.0, Double(readToday) / Double(goal))
 
-            Button { showAddCustomDhikr = true } label: {
-                Text("+ إضافة ذكر أو وِرد خاص بك")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity).frame(height: 42)
-                    .background(Capsule().fill(store.accentColor))
-            }
+        return VStack(alignment: .leading, spacing: 14) {
+            // Daily Wird Card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("الوِرد اليومي من القرآن 📖")
+                        .font(.system(size: 16.5, weight: .heavy))
+                    Spacer()
+                    Text("ختمة في \(QuranRepository.toArabicDigits(khatmahDays)) يوماً")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(store.accentColor)
+                }
 
-            ForEach(store.allDhikrs) { item in
-                let isSelected = (item.id == store.state.activeDhikrId)
+                Text("قرأت \(QuranRepository.toArabicDigits(readToday)) من \(QuranRepository.toArabicDigits(goal)) صفحات اليوم • الموضع الحالي: صفحة \(QuranRepository.toArabicDigits(store.state.settings.quranCurrentPage))")
+                    .font(.system(size: 12.5))
+                    .foregroundColor(.secondary)
+
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.primary.opacity(0.08)).frame(height: 6)
+                        Capsule().fill(store.accentColor).frame(width: max(8, g.size.width * progress), height: 6)
+                    }
+                }
+                .frame(height: 6)
+
+                // Daily Pages Stepper
+                HStack {
+                    Text("عدد الصفحات يومياً")
+                        .font(.system(size: 13.5, weight: .bold))
+                    Spacer()
+                    HStack(spacing: 12) {
+                        Button {
+                            if store.state.settings.quranDailyPages > 1 {
+                                store.state.settings.quranDailyPages -= 1
+                                store.saveImmediate()
+                                NotificationService.rescheduleAll(state: store.state)
+                                HapticsAndAudio.shared.gentleTick()
+                            }
+                        } label: {
+                            Image(systemName: "minus")
+                                .font(.system(size: 13, weight: .bold))
+                                .frame(width: 32, height: 32)
+                                .background(Circle().fill(Color.appBackground))
+                        }
+                        .buttonStyle(.plain)
+
+                        Text("\(QuranRepository.toArabicDigits(goal)) صفحات")
+                            .font(.system(size: 13.5, weight: .heavy))
+                            .foregroundColor(store.accentColor)
+
+                        Button {
+                            if store.state.settings.quranDailyPages < 30 {
+                                store.state.settings.quranDailyPages += 1
+                                store.saveImmediate()
+                                NotificationService.rescheduleAll(state: store.state)
+                                HapticsAndAudio.shared.gentleTick()
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 13, weight: .bold))
+                                .frame(width: 32, height: 32)
+                                .background(Circle().fill(Color.appBackground))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                Divider().opacity(0.4)
+
+                // Custom Notification Time + Toggle
+                HStack {
+                    Toggle("إشعار «ابدأ وردك اليومي»", isOn: Binding(
+                        get: { store.state.settings.quranWirdReminderEnabled },
+                        set: {
+                            store.state.settings.quranWirdReminderEnabled = $0
+                            store.saveImmediate()
+                            NotificationService.rescheduleAll(state: store.state)
+                        }
+                    ))
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .tint(store.accentColor)
+                }
+
+                if store.state.settings.quranWirdReminderEnabled {
+                    DatePicker(
+                        "وقت التذكير اليومي",
+                        selection: Binding(
+                            get: {
+                                var comps = DateComponents()
+                                comps.hour = store.state.settings.quranWirdHour
+                                comps.minute = store.state.settings.quranWirdMinute
+                                return Calendar.current.date(from: comps) ?? Date()
+                            },
+                            set: { newDate in
+                                let c = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                                store.state.settings.quranWirdHour = c.hour ?? 21
+                                store.state.settings.quranWirdMinute = c.minute ?? 0
+                                store.saveImmediate()
+                                NotificationService.rescheduleAll(state: store.state)
+                            }
+                        ),
+                        displayedComponents: .hourAndMinute
+                    )
+                    .font(.system(size: 13, weight: .medium))
+                    .tint(store.accentColor)
+                }
+
                 Button {
-                    store.state.activeDhikrId = item.id
-                    store.saveImmediate()
+                    quranStartPage = store.state.settings.quranCurrentPage
+                    showQuranReader = true
                     HapticsAndAudio.shared.gentleTick()
                 } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.arabicText)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(isSelected ? store.accentColor : .primary)
-                            Text(item.virtue)
-                                .font(.system(size: 11.5))
-                                .foregroundColor(.secondary)
+                    Text("افتح المصحف وابدأ ورد اليوم (صفحة \(QuranRepository.toArabicDigits(store.state.settings.quranCurrentPage))) 📖")
+                        .font(.system(size: 14.5, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Capsule().fill(store.accentColor))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color.cardBorder)))
+
+            // Search Bar (Surah Name, Full-Text Ayah, or Page 1..604)
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                TextField("ابحث عن سورة أو آية (مثال: يا ايها الكافرون) أو صفحة...", text: $quranSearchQuery)
+                    .font(.system(size: 13.5))
+                    .onChange(of: quranSearchQuery) { newVal in
+                        let q = newVal.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if q.count >= 2 && Int(q) == nil {
+                            Task {
+                                let res = await QuranRepository.shared.searchAyahs(query: q)
+                                await MainActor.run { ayahSearchResults = res }
+                            }
+                        } else {
+                            ayahSearchResults = []
                         }
-                        Spacer()
-                        Text("\(store.state.dhikrLifetimeCounts[item.id] ?? 0)")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(store.accentColor)
                     }
-                    .padding(14)
+                if !quranSearchQuery.isEmpty {
+                    Button { quranSearchQuery = ""; ayahSearchResults = [] } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(13)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.cardBorder)))
+
+            // Direct Page Jump
+            if let pNum = Int(quranSearchQuery.trimmingCharacters(in: .whitespaces)), pNum >= 1 && pNum <= 604 {
+                Button {
+                    quranStartPage = pNum
+                    showQuranReader = true
+                } label: {
+                    Text("📖 الانتقال مباشرة إلى صفحة \(QuranRepository.toArabicDigits(pNum))")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Capsule().fill(store.accentColor))
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Full-Text Ayah Search Matches
+            if !ayahSearchResults.isEmpty {
+                Text("✨ نتائج البحث في الآيات (\(QuranRepository.toArabicDigits(ayahSearchResults.count)))")
+                    .font(.system(size: 13.5, weight: .bold))
+                    .foregroundColor(store.accentColor)
+                VStack(spacing: 8) {
+                    ForEach(ayahSearchResults) { ayah in
+                        Button {
+                            quranStartPage = ayah.page
+                            showQuranReader = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("﴿ \(ayah.text) ﴾")
+                                    .font(.system(size: 14.5, weight: .bold))
+                                    .foregroundColor(.primary)
+                                    .multilineTextAlignment(.leading)
+                                Text("\(ayah.surahName) • الآية \(QuranRepository.toArabicDigits(ayah.numberInSurah)) • صفحة \(QuranRepository.toArabicDigits(ayah.page))")
+                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .foregroundColor(store.accentColor)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
+                            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.cardBorder)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // 114-Surah Index
+            Text("فهرس سور المصحف الشريف (١١٤ سورة)")
+                .font(.system(size: 14.5, weight: .bold))
+                .padding(.top, 4)
+
+            let trimmed = quranSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            let filteredSurahs = QuranRepository.surahs.filter {
+                trimmed.isEmpty || $0.name.contains(trimmed) || "\($0.number)" == trimmed
+            }
+            LazyVStack(spacing: 8) {
+                ForEach(filteredSurahs) { s in
+                    Button {
+                        quranStartPage = s.startPage
+                        showQuranReader = true
+                        HapticsAndAudio.shared.gentleTick()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(QuranRepository.toArabicDigits(s.number))
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(store.accentColor)
+                                .frame(width: 34, height: 34)
+                                .background(Circle().fill(store.accentColor.opacity(0.12)))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("سورة \(s.name)")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.primary)
+                                Text("\(s.isMeccan ? "مكية" : "مدنية") • \(QuranRepository.toArabicDigits(s.ayahCount)) آية")
+                                    .font(.system(size: 11.5))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Text("ص \(QuranRepository.toArabicDigits(s.startPage))")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(store.accentColor)
+                        }
+                        .padding(13)
+                        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.cardBorder)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - Sub-Tab 2: Dhikr Library (Entire Card Click-to-Activate)
+    private var dhikrLibrarySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                showAddCustomDhikr = true
+            } label: {
+                Text("+ إضافة ذكر خاص بك")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .background(Capsule().fill(store.accentColor))
+            }
+            .buttonStyle(.plain)
+
+            ForEach(store.allDhikrs) { item in
+                let isActive = (item.id == store.activeDhikr.id)
+                let lifetime = store.state.dhikrLifetimeCounts[item.id] ?? 0
+                Button {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        store.state.activeDhikrId = item.id
+                        store.saveImmediate()
+                    }
+                    HapticsAndAudio.shared.gentleTick()
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(item.arabicText)
+                                .font(.system(size: 15.5, weight: .bold))
+                                .foregroundColor(isActive ? .white : .primary)
+                                .multilineTextAlignment(.leading)
+                            Spacer()
+                            if isActive {
+                                Text("✓ مفعل")
+                                    .font(.system(size: 11.5, weight: .bold))
+                                    .foregroundColor(store.accentColor)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Capsule().fill(Color.white))
+                            }
+                        }
+                        Text(item.virtue)
+                            .font(.system(size: 12))
+                            .foregroundColor(isActive ? .white.opacity(0.86) : .secondary)
+                            .multilineTextAlignment(.leading)
+                        Text("الإجمالي: \(lifetime) مرة")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundColor(isActive ? .white.opacity(0.92) : store.accentColor)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
                     .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(Color.cardSurface)
-                            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(isSelected ? store.accentColor : Color.cardBorder, lineWidth: isSelected ? 1.6 : 1))
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(isActive ? store.accentColor : Color.cardSurface)
+                            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(isActive ? store.accentColor : Color.cardBorder))
                     )
                 }
                 .buttonStyle(.plain)
@@ -347,39 +590,47 @@ struct WorshipTrackerView: View {
         }
     }
 
+    private func sectionHeader(title: String, counter: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 16, weight: .heavy))
+            Spacer()
+            Text(counter)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.secondary)
+        }
+    }
+
     private func habitRow(key: String, title: String, subtitle: String, icon: String, customAction: (() -> Void)? = nil) -> some View {
         let done = store.isHabitDone(dateKey: selectedDateKey, habitKey: key)
         return Button {
-            if let customAction {
-                customAction()
+            if let action = customAction, !done {
+                action()
             } else {
                 store.toggleHabit(dateKey: selectedDateKey, habitKey: key)
             }
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(.system(size: 17))
                     .foregroundColor(done ? store.accentColor : .secondary)
                     .frame(width: 24)
-
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 14.5, weight: .bold))
                         .foregroundColor(done ? store.accentColor : .primary)
                     Text(subtitle)
                         .font(.system(size: 11.5))
                         .foregroundColor(.secondary)
                 }
-
                 Spacer()
-
                 ZStack {
                     Circle()
                         .fill(done ? store.accentColor : Color.clear)
                         .overlay(Circle().stroke(done ? store.accentColor : Color.secondary.opacity(0.45), lineWidth: 1.5))
                     if done {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.white)
                     }
                 }
@@ -397,8 +648,8 @@ struct WorshipTrackerView: View {
 
     private func arabicDayName(for key: String) -> String {
         let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd"
+        df.locale = Locale(identifier: "en_US_POSIX")
         guard let d = df.date(from: key) else { return "اليوم" }
         let out = DateFormatter()
         out.locale = Locale(identifier: "ar")
@@ -408,104 +659,152 @@ struct WorshipTrackerView: View {
 
     private func hijriString(for key: String) -> String {
         let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd"
-        guard let d = df.date(from: key) else { return "" }
+        df.locale = Locale(identifier: "en_US_POSIX")
+        let d = df.date(from: key) ?? Date()
         let hijri = Calendar(identifier: .islamicUmmAlQura)
         let comps = hijri.dateComponents([.year, .month, .day], from: d)
-        return String(format: "%04d-%02d-%02d", comps.year ?? 1448, comps.month ?? 1, comps.day ?? 1)
-    }
-
-    private func fastingBadge(for key: String) -> String {
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.dateFormat = "yyyy-MM-dd"
-        guard let d = df.date(from: key) else { return "صيام التطوع" }
-        let hDay = Calendar(identifier: .islamicUmmAlQura).component(.day, from: d)
-        if hDay >= 13 && hDay <= 15 { return "الأيام البيض" }
-        let dow = Calendar(identifier: .gregorian).component(.weekday, from: d)
-        if dow == 2 || dow == 5 { return "سنة الإثنين والخميس" }
-        return "صيام التطوع"
+        return String(format: "%04d-%02d-%02d هـ", comps.year ?? 1448, comps.month ?? 1, comps.day ?? 1)
     }
 }
 
 struct AdhkarSessionSheetView: View {
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var store: MidrarStore
-    let isMorning: Bool
-    let onTap: () -> Void
-    let onComplete: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    let mode: AdhkarSessionMode
+    let onCompleted: () -> Void
 
-    @State private var index = 0
-    @State private var remaining = 1
+    @State private var index: Int = 0
+    @State private var remaining: Int = 1
 
-    private var entries: [AdhkarEntry] {
-        isMorning ? AdhkarEntry.morning : AdhkarEntry.evening
-    }
+    private var entries: [AdhkarEntry] { mode.entries }
 
     var body: some View {
-        let current = entries[min(index, entries.count - 1)]
         VStack(spacing: 18) {
             HStack {
-                Text(isMorning ? "أذكار الصباح" : "أذكار المساء")
-                    .font(.system(size: 18, weight: .bold))
+                Text(mode.title)
+                    .font(.system(size: 19, weight: .heavy))
                     .foregroundColor(store.accentColor)
                 Spacer()
                 Text("\(index + 1) / \(entries.count)")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.cardSurface))
             }
 
             ProgressView(value: Double(index + 1), total: Double(entries.count))
                 .tint(store.accentColor)
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            VStack(spacing: 16) {
-                Text(current.text)
-                    .font(.system(size: 19, weight: .bold))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(8)
-                Text(current.virtue)
-                    .font(.system(size: 12.5))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-
-                Text("\(remaining)")
-                    .font(.system(size: 40, weight: .heavy, design: .rounded))
-                    .foregroundColor(store.accentColor)
-                    .frame(width: 84, height: 84)
-                    .background(Circle().fill(Color.appBackground).overlay(Circle().stroke(store.accentColor, lineWidth: 2)))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(24)
-            .background(RoundedRectangle(cornerRadius: 24).fill(Color.cardSurface).overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.cardBorder)))
-            .onTapGesture {
-                onTap()
+            let current = entries[min(index, entries.count - 1)]
+            Button {
+                store.recordDhikrTap()
                 if remaining > 1 {
                     remaining -= 1
-                } else if index < entries.count - 1 {
-                    index += 1
-                    remaining = entries[index].targetCount
                 } else {
-                    onComplete()
-                    dismiss()
+                    advance()
                 }
+            } label: {
+                VStack(spacing: 16) {
+                    Text(current.text)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(8)
+                    Text(current.virtue)
+                        .font(.system(size: 12.5))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Text("انقر للعدّ • المتبقي \(remaining)")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 26)
+                        .padding(.vertical, 11)
+                        .background(Capsule().fill(store.accentColor))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(22)
+                .background(
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .fill(Color.cardSurface)
+                        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(Color.cardBorder))
+                )
             }
+            .buttonStyle(.plain)
 
-            Text("انقر على البطاقة للذكر وسُقيا الواحة")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+            Spacer(minLength: 8)
 
-            Spacer()
+            // Bottom Controls: Previous + Next + Close
+            HStack(spacing: 10) {
+                Button {
+                    goToPrevious()
+                } label: {
+                    Text("→ السابق")
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Capsule().fill(Color.cardSurface))
+                }
+                .buttonStyle(.plain)
+                .disabled(index == 0)
+                .opacity(index > 0 ? 1.0 : 0.38)
 
-            Button("إغلاق") { dismiss() }
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.secondary)
+                Button {
+                    advance()
+                } label: {
+                    Text("التالي ←")
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(store.accentColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Capsule().fill(Color.cardSurface))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    dismiss()
+                } label: {
+                    Text("إغلاق")
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Capsule().fill(Color.cardSurface))
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding(24)
+        .padding(22)
+        .background(Color.appBackground.ignoresSafeArea())
+        .environment(\.layoutDirection, .rightToLeft)
         .onAppear {
             remaining = entries.first?.targetCount ?? 1
+        }
+    }
+
+    private func goToPrevious() {
+        guard index > 0 else { return }
+        HapticsAndAudio.shared.gentleTick()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            index -= 1
+            remaining = entries[index].targetCount
+        }
+    }
+
+    private func advance() {
+        if index + 1 < entries.count {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                index += 1
+                remaining = entries[index].targetCount
+            }
+        } else {
+            onCompleted()
+            dismiss()
         }
     }
 }

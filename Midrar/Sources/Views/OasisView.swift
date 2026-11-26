@@ -173,7 +173,7 @@ struct OasisView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
                                     Text("\(store.state.totalIstighfar)")
-                                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                                        .font(.system(size: 38, weight: .heavy, design: .rounded))
                                         .contentTransition(.numericText())
                                         .scaleEffect(counterBounce ? 1.07 : 1.0)
                                         .animation(.spring(response: 0.22, dampingFraction: 0.65), value: counterBounce)
@@ -194,14 +194,14 @@ struct OasisView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Text(store.activeDhikr.shortTitle)
-                                        .font(.system(size: 13.5, weight: .bold))
+                                        .font(.system(size: 15.5, weight: .bold))
                                         .lineLimit(1)
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 11, weight: .bold))
                                 }
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 9)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
                                 .background(
                                     Capsule()
                                         .fill(store.accentColor)
@@ -237,6 +237,16 @@ struct OasisView: View {
                             .shadow(color: Color.black.opacity(0.08), radius: 14, x: 0, y: 6)
                     )
                     .padding(.horizontal, 20)
+
+                    if let warn = store.mindfulWarningMessage {
+                        Text(warn)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Color(hex: "9A661F").opacity(0.92)))
+                            .transition(.opacity.combined(with: .scale))
+                    }
 
                     if let msg = voiceService.statusMessage {
                         Text(msg)
@@ -362,8 +372,12 @@ struct OasisView: View {
         if s <= 60 { return "أرض تنتظر الغيث" }
         if s <= 180 { return "بداية الإنبات والأغصان" }
         if s <= 350 { return "نمو الشجرة واخضرارها" }
-        if s < MidrarStore.maxStage { return "واحة مزهرة تنمو بذكرك" }
-        return "واحة مكتملة الثمار"
+        if s <= 598 { return "واحة مزهرة تنمو بذكرك" }
+        if s <= 748 { return "المرحلة ٢: أساسات المسجد والصحن الرخامي 🕌" }
+        if s <= 898 { return "المرحلة ٢: بناء الأقواس العربية والمئذنة" }
+        if s <= 1048 { return "المرحلة ٢: القبة البيضاء والهلال والحدائق ✨" }
+        if s < MidrarStore.maxStage { return "المرحلة ٢: إطلالة المسجد وسط الواحة والنهر 🌿" }
+        return "اكتمال المسجد المبارك — إنجاز ١٠٠,٠٠٠ ذكر 🕌🏅"
     }
 
     private var skyAtmosphereOverlay: some View {
@@ -380,10 +394,12 @@ struct OasisView: View {
     }
 
     private func handleTap(at location: CGPoint) {
+        var accepted = false
         withAnimation(.spring(response: 0.22, dampingFraction: 0.72)) {
-            store.recordDhikrTap()
+            accepted = store.recordDhikrTap()
         }
         wakeChrome()
+        guard accepted else { return }
         tapPulse = true
         counterBounce = true
         lastRainTrigger = Date()

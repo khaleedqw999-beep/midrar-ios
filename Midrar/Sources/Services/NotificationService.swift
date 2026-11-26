@@ -37,7 +37,7 @@ enum NotificationService {
         let firstName = state.userName.split(separator: " ").first.map(String.init) ?? ""
         let yaName = firstName.isEmpty ? "" : "يا \(firstName)، "
 
-        let prayers = PrayerTimeCalculator.computeForToday(cityName: state.settings.userCity)
+        let prayers = PrayerTimeCalculator.getActivePrayers(settings: state.settings)
         let prayerItems: [(String, Int, String, String)] = [
             ("fajr", prayers.fajrMin + 15, "أذكار بعد صلاة الفجر", "\(yaName)بعد الفجر تُقسَّم الأرزاق.. استغفر\(isFemale ? "ي" : "") ربك\(isFemale ? "ِ" : "") الآن"),
             ("dhuhr", prayers.dhuhrMin + 15, "سكينة بعد صلاة الظهر", "\(yaName)دقائق من الاستغفار بعد الظهر تشرح الصدر"),
@@ -48,6 +48,18 @@ enum NotificationService {
 
         for (id, mins, title, body) in prayerItems {
             scheduleDaily(id: "prayer_\(id)", minutesFromMidnight: mins, title: title, body: body)
+        }
+
+
+        if state.settings.quranWirdReminderEnabled {
+            let pages = max(1, state.settings.quranDailyPages)
+            let startP = max(1, min(604, state.settings.quranCurrentPage))
+            let endP = min(604, startP + pages - 1)
+            let wMins = state.settings.quranWirdHour * 60 + state.settings.quranWirdMinute
+            let wBody = isFemale
+                ? "\(yaName)ابدئي وردكِ اليومي من القرآن الكريم الآن (\(pages) صفحات: من صفحة \(startP) إلى \(endP)) 📖"
+                : "\(yaName)ابدأ وردك اليومي من القرآن الكريم الآن (\(pages) صفحات: من صفحة \(startP) إلى \(endP)) 📖"
+            scheduleDaily(id: "quran_wird_daily", minutesFromMidnight: wMins, title: "حان وقت وردك اليومي من القرآن 📖", body: wBody)
         }
 
         if state.settings.habitRemindersEnabled {
