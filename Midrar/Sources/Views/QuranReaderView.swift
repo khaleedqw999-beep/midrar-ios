@@ -11,6 +11,8 @@ struct QuranReaderView: View {
     @State private var errorMsg: String?
     @State private var slideOffset: CGFloat = 0
     @State private var wirdBannerToast: String?
+    @State private var showAyahPicker: Bool = false
+    @State private var selectedAyahForReflection: QuranAyahItem? = nil
 
     private var paperBackground: Color {
         colorScheme == .dark ? Color(hex: "0D120F") : Color(hex: "FBF8F1")
@@ -78,17 +80,49 @@ struct QuranReaderView: View {
             .padding(.vertical, 12)
             .background(barSurface.ignoresSafeArea(edges: .top))
 
-            // Daily Wird Progress Strip
-            HStack(spacing: 6) {
+            // Daily Wird Progress Strip + Ayah Reflection AI Button
+            HStack(spacing: 8) {
                 Image(systemName: "book.fill")
                     .font(.system(size: 11.5))
                 Text(wirdStatusText)
                     .font(.system(size: 12, weight: .bold))
+                    .lineLimit(1)
+                Spacer()
+                Button {
+                    showAyahPicker = true
+                } label: {
+                    Text("✨ تأمّل آية")
+                        .font(.system(size: 11.5, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(store.accentColor))
+                }
+                .buttonStyle(.plain)
             }
             .foregroundColor(store.accentColor)
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
             .padding(.vertical, 7)
             .background(store.accentColor.opacity(0.08))
+            .confirmationDialog("✨ اختر آية للتأمّل المبسّط", isPresented: $showAyahPicker, titleVisibility: .visible) {
+                if let ayahs = pageContent?.ayahs {
+                    ForEach(Array(ayahs.prefix(15).enumerated()), id: \.offset) { _, a in
+                        Button("﴿\(QuranRepository.toArabicDigits(a.numberInSurah))﴾ \(String(a.text.prefix(42)))...") {
+                            selectedAyahForReflection = a
+                        }
+                    }
+                }
+                Button("إلغاء", role: .cancel) {}
+            }
+            .sheet(isPresented: Binding(
+                get: { selectedAyahForReflection != nil },
+                set: { if !$0 { selectedAyahForReflection = nil } }
+            )) {
+                if let a = selectedAyahForReflection {
+                    AyahReflectionView(ayah: a)
+                        .environmentObject(store)
+                }
+            }
 
             // Main Swipeable Mushaf Reading Area
             ZStack {

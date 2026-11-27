@@ -7,6 +7,8 @@ struct WorshipTrackerView: View {
     @State private var activeAdhkarMode: AdhkarSessionMode? = nil
     @State private var showQuranReader: Bool = false
     @State private var showQiblaCompass: Bool = false
+    @State private var showHeartHelper: Bool = false
+    @State private var showWeeklyCoach: Bool = false
     @State private var quranStartPage: Int = 1
     @State private var quranSearchQuery: String = ""
     @State private var ayahSearchResults: [QuranAyahItem] = []
@@ -80,6 +82,14 @@ struct WorshipTrackerView: View {
             QiblaCompassView()
                 .environmentObject(store)
         }
+        .sheet(isPresented: $showHeartHelper) {
+            HeartHelperView()
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showWeeklyCoach) {
+            WeeklyCoachView()
+                .environmentObject(store)
+        }
         .alert("إضافة ذكر خاص", isPresented: $showAddCustomDhikr) {
             TextField("اكتب صيغة الذكر...", text: $customDhikrText)
             Button("حفظ") {
@@ -122,6 +132,41 @@ struct WorshipTrackerView: View {
     // MARK: - Sub-Tab 0: Worship Tracker (No Fasting, Sleep Adhkar Interactive)
     private var trackerSection: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // Midrar Spiritual AI Quick Bar (V5.6: مُعين القلب + مرشد الأسبوع)
+            HStack(spacing: 10) {
+                Button {
+                    HapticsAndAudio.shared.gentleTick()
+                    showHeartHelper = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("✨ مُعين القلب")
+                            .font(.system(size: 13.5, weight: .bold))
+                            .foregroundColor(store.accentColor)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(store.accentColor.opacity(0.12)))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(store.accentColor.opacity(0.45), lineWidth: 1.2))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    HapticsAndAudio.shared.gentleTick()
+                    showWeeklyCoach = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("📊 مرشد الأسبوع")
+                            .font(.system(size: 13.5, weight: .bold))
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.cardSurface))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.cardBorder, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+
             // Obsidian Date + Progress Ring + 7-Day Strip
             VStack(spacing: 14) {
                 HStack {
