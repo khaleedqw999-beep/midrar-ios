@@ -302,7 +302,7 @@ struct WeeklyCoachView: View {
             let stats: [String: Any] = [
                 "total_istighfar": store.state.totalIstighfar,
                 "current_streak_days": store.state.currentStreak,
-                "today_istighfar": store.state.todayIstighfar,
+                "today_istighfar": store.state.todayCount,
                 "quran_pages_today": store.state.settings.quranPagesReadToday
             ]
             do {
