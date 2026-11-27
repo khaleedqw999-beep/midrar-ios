@@ -4,6 +4,7 @@ struct MainTabContainerView: View {
     @EnvironmentObject var store: MidrarStore
     @State private var selectedTab: Int = 0
     @State private var showOnboarding: Bool = false
+    @State private var showHeartHelper: Bool = false
     @State private var bannerDismissTask: Task<Void, Never>?
     @Namespace private var tabNamespace
 
@@ -33,7 +34,8 @@ struct MainTabContainerView: View {
                     ProfileSettingsView()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: selectedTab == 0 ? .infinity : 640, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
             .id(selectedTab)
             .transition(.opacity.combined(with: .scale(scale: 0.985)))
             .animation(.spring(response: 0.30, dampingFraction: 0.86), value: selectedTab)
@@ -64,8 +66,50 @@ struct MainTabContainerView: View {
             }
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.84), value: store.activeAnnouncement?.announcement_title)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .dynamicTypeSize(.small ... .large)
+        .overlay(alignment: .bottomLeading) {
+            if selectedTab == 0 || selectedTab == 1 || selectedTab == 3 {
+                Button {
+                    HapticsAndAudio.shared.gentleTick()
+                    showHeartHelper = true
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 52, height: 52)
+                            .overlay(
+                                Circle()
+                                    .fill(Color(hex: "0F261E").opacity(0.68))
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(colors: [store.accentColor, Color(hex: "F5B942")], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                        lineWidth: 1.5
+                                    )
+                            )
+                            .shadow(color: store.accentColor.opacity(0.35), radius: 12, y: 4)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 21, weight: .bold))
+                            .foregroundStyle(
+                                LinearGradient(colors: [Color(hex: "34D399"), Color(hex: "F5B942")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 16)
+                .padding(.bottom, 88)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .environment(\.layoutDirection, .leftToRight)
+        .overlay(alignment: .bottom) {
             bottomDock
+                .environment(\.layoutDirection, .rightToLeft)
+        }
+        .sheet(isPresented: $showHeartHelper) {
+            HeartHelperView()
+                .environmentObject(store)
         }
         .onAppear {
             NotificationService.configureDelegate()

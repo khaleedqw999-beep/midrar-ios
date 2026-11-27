@@ -132,40 +132,20 @@ struct WorshipTrackerView: View {
     // MARK: - Sub-Tab 0: Worship Tracker (No Fasting, Sleep Adhkar Interactive)
     private var trackerSection: some View {
         VStack(alignment: .leading, spacing: 18) {
-            // Midrar Spiritual AI Quick Bar (V5.6: مُعين القلب + مرشد الأسبوع)
-            HStack(spacing: 10) {
-                Button {
-                    HapticsAndAudio.shared.gentleTick()
-                    showHeartHelper = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("✨ مُعين القلب")
-                            .font(.system(size: 13.5, weight: .bold))
-                            .foregroundColor(store.accentColor)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(store.accentColor.opacity(0.12)))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(store.accentColor.opacity(0.45), lineWidth: 1.2))
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    HapticsAndAudio.shared.gentleTick()
-                    showWeeklyCoach = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("📊 مرشد الأسبوع")
-                            .font(.system(size: 13.5, weight: .bold))
-                            .foregroundColor(.primary)
-                    }
+            // Midrar Weekly Worship Coach Button (Floating Sparkle replaces Heart button)
+            Button {
+                HapticsAndAudio.shared.gentleTick()
+                showWeeklyCoach = true
+            } label: {
+                Text("📊 مرشد العبادات الأسبوعي")
+                    .font(.system(size: 13.5, weight: .bold))
+                    .foregroundColor(.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(RoundedRectangle(cornerRadius: 16).fill(Color.cardSurface))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.cardBorder, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
 
             // Obsidian Date + Progress Ring + 7-Day Strip
             VStack(spacing: 14) {
